@@ -1,120 +1,101 @@
 import tkinter as tk
-from tkinter.messagebox import OK, ERROR, showinfo
+from tkinter.messagebox import showinfo, ERROR, OK
+from core import Snake, Food, Field
 
 
-def start_game():
+class App(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.config(bg="#bfd2c4")
+        self.pack(fill="both", expand=True)
 
-    global check_start
-    
-    if not check_start:
-        check_start = True
-        start_button.config(state="disabled")
-        update_position()
-
-
-def update_position():
-
-    global check_start
-
-    coords = canvas.coords(snakehead)
-
-    if movement_mark == "up" and coords[1] > 0:
-        canvas.move(snakehead, 0, -10)
-        root.after(100, update_position)
-
-    elif movement_mark == "down" and coords[3] < 550:
-        canvas.move(snakehead, 0, 10)
-        root.after(100, update_position)
-
-    elif movement_mark == "right" and coords[2] < 550:
-        canvas.move(snakehead, 10, 0)
-        root.after(100, update_position)
-
-    elif movement_mark == "left" and coords[0] > 0:
-        canvas.move(snakehead, -10, 0)
-        root.after(100, update_position)
-
-    else:
-        canvas.move(snakehead, 0, 0)
-        check_start = False
-        start_button.config(state="active")
-        canvas.delete("snake")
-        loose()
-
-
-def movement(event):
-
-    global movement_mark
-
-    if event.keysym == "Up":
-        if movement_mark != "down":
-            movement_mark = "up"
-
-    elif event.keysym == "Down":
-        if movement_mark != "up":
-            movement_mark = "down"
+        self.snake = None
+        self.food = None
+        self.check_start = False
+        self.movement_dir = "right"
         
-    elif event.keysym == "Right":
-        if movement_mark != "left":
-            movement_mark = "right"
-        
-    elif event.keysym == "Left":
-        if movement_mark != "right":
-            movement_mark = "left"
-        
+        self.start_button = tk.Button(self, text="Start", command=self.start_game)
+        self.start_button.pack(pady=10)
 
-def spawn_snake():
+        self.canvas = tk.Canvas(self)
+        self.canvas.pack(anchor="center", expand=1)
 
-    global snakehead
+        self.movement_info = tk.Label(self, text="Use the arrows for control the snake", bg="#bfd2c4", fg="black")
+        self.movement_info.pack(pady=20)
 
-    snakehead = canvas.create_rectangle(260, 260, 280, 280, fill="#006400", outline="black", tags="snake")
+        self.field = Field(self.canvas)
+        self.field.spawn_field()
+
+        self.snake = Snake(self.field, self.canvas)
+        self.snake.spawn_snake()
+
+        self.food = Food(self.field, self.canvas)
+
+        self.canvas.bind_all("<KeyPress>", self.movement)
 
 
-def loose():
-    showinfo(title="Упс...", message="Вы проиграли....", detail="Нажмите 'Ok' чтобы закрыть окно.", icon=ERROR, default=OK)
-    spawn_snake()
-        
+    def start_game(self):
+        if not self.check_start:
+            self.check_start = True
+            self.start_button.config(state="disabled")
+            self.update_position()
+            self.food.spawn_food()
 
-# инициализация
+
+    def loose_game(self):
+        showinfo(title="Oops...", message="You loose.", detail="Press 'OK' to restart", icon=ERROR, default=OK)
+        self.snake.spawn_snake()
+
+
+    def movement(self, event):
+        if event.keysym == "Up" and self.movement_dir != "down":
+            self.movement_dir = "up"
+
+        elif event.keysym == "Down" and self.movement_dir != "up":
+            self.movement_dir = "down"
+            
+        elif event.keysym == "Right" and self.movement_dir != "left":
+            self.movement_dir = "right"
+            
+        elif event.keysym == "Left" and self.movement_dir != "right":
+            self.movement_dir = "left"
+
+
+    def update_position(self):
+        coords = self.canvas.coords(self.snake.snakehead)
+
+        if self.movement_dir == "up" and coords[1] > self.snake.snake_size:
+            self.canvas.move(self.snake.snakehead, 0, -self.snake.snake_size)
+
+        elif self.movement_dir == "down" and coords[3] < 500:
+            self.canvas.move(self.snake.snakehead, 0, self.snake.snake_size)
+
+        elif self.movement_dir == "right" and coords[2] < 500:
+            self.canvas.move(self.snake.snakehead, self.snake.snake_size, 0)
+
+
+        elif self.movement_dir == "left" and coords[0] > self.snake.snake_size:
+            self.canvas.move(self.snake.snakehead, -self.snake.snake_size, 0)
+
+        else:
+            self.canvas.move(self.snake.snakehead, 0, 0)
+            self.check_start = False
+            self.start_button.config(state="active")
+            self.canvas.delete("snake")
+            self.loose_game()
+
+        if self.check_start:
+            self.canvas.after(100, self.update_position)
+
+
+
 root = tk.Tk()
-root.title("Snake the game")
+root.title("Snake")
 root.geometry("600x600")
 root.iconbitmap(default="favicon.ico")
 root.resizable(False, False)
+root.config(bg="#bfd2c4")
 
-main_menu = tk.Menu()
-
-
-menu_info = tk.Menu(tearoff=0)
-menu_info.add_command(label="About")
-menu_info.add_command(label="Mode")
-
-menu_info.add_separator()
-menu_info.add_command(label="Exit")
-
-main_menu.add_cascade(label="Menu", menu=menu_info)
-
-root.config(menu=main_menu)
-
-check_start = False
-
-start_button = tk.Button(text="Start", command=start_game)
-start_button.pack()
-
-# инициализация canvas
-canvas = tk.Canvas(bg="black", width=550, height=550)
-canvas.pack(anchor="center", expand=1)
-
-snakehead = canvas.create_rectangle(260, 260, 280, 280, fill="#006400", outline="black", tags="snake")
-
-movement_info = tk.Label(text="Use the arrows for control the snake")
-movement_info.pack()
-
-# управление
-root.bind("<Up>", movement)
-root.bind("<Down>", movement)
-root.bind("<Right>", movement)
-root.bind("<Left>", movement)
-movement_mark = "right"
-
-root.mainloop()
+myapp = App(master=root)
+myapp.mainloop()
