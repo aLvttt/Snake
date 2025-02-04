@@ -14,38 +14,65 @@ class App(tk.Frame):
         self.food = None
         self.check_start = False
         self.movement_dir = "right"
+        self.point_counter = 0
+        self.best_score = 0
         
-        self.start_button = tk.Button(self, text="Start", command=self.start_game)
-        self.start_button.pack(pady=10)
+        self.start_info = tk.Label(self, text='Press "Enter" for start the game :)', bg="#bfd2c4", fg="black")
+        self.start_info.pack(pady=2)
 
         self.canvas = tk.Canvas(self)
         self.canvas.pack(anchor="center", expand=1)
 
-        self.movement_info = tk.Label(self, text="Use the arrows for control the snake", bg="#bfd2c4", fg="black")
-        self.movement_info.pack(pady=20)
+        self.point_info = tk.Label(self, text=self.point_counter, bg="#bfd2c4", fg="black")
+        self.point_info.pack(pady=2)
+
+        self.best_score_info = tk.Label(self, text=f"Your best score: {self.best_score}", bg="#bfd2c4", fg="black")
+        self.best_score_info.pack(pady=2)
+
+        self.movement_info = tk.Label(self, text="Use the arrows for control the snake", bg="#bfd2c4", fg="red")
+        self.movement_info.pack(pady=2)
+
 
         self.field = Field(self.canvas)
         self.field.spawn_field()
 
         self.snake = Snake(self.field, self.canvas)
         self.snake.spawn_snake()
+        print("Snake:", self.canvas.coords(self.snake.snakehead))
 
-        self.food = Food(self.field, self.canvas)
+        self.food = Food(self.field, self.canvas, self.snake)
 
         self.canvas.bind_all("<KeyPress>", self.movement)
+        self.canvas.bind_all("<Return>", self.keyboard_start_game)
+
+
+    def keyboard_start_game(self, event):
+        self.start_game()
 
 
     def start_game(self):
         if not self.check_start:
             self.check_start = True
-            self.start_button.config(state="disabled")
             self.update_position()
             self.food.spawn_food()
 
 
     def loose_game(self):
-        showinfo(title="Oops...", message="You loose.", detail="Press 'OK' to restart", icon=ERROR, default=OK)
+        self.canvas.move(self.snake.snakehead, 0, 0)
+        self.check_start = False
+        self.canvas.delete("snake")
+
+        showinfo(title="Oops...", message=f"You loose. Your score: {self.point_info['text']}", detail="Press 'OK' to restart", icon=ERROR, default=OK)
         self.snake.spawn_snake()
+        self.canvas.delete("food")
+
+        if self.best_score < self.point_counter:
+            self.best_score_info["text"] = f'Your best score: {self.point_info["text"]}'
+            self.best_score = self.point_counter
+
+        self.point_info["text"] = 0
+        self.point_counter = 0
+        
 
 
     def movement(self, event):
@@ -64,8 +91,19 @@ class App(tk.Frame):
 
     def update_position(self):
         coords = self.canvas.coords(self.snake.snakehead)
+        
+        if self.food.food:
+            food_coords = self.canvas.coords(self.food.food)
+            print("Food coords:", food_coords)
 
-        if self.movement_dir == "up" and coords[1] > self.snake.snake_size:
+        print("Snake head coords:", coords)
+
+        for i in range(len(self.snake.segments) -1, 0, -1):
+            old_coords = self.canvas.coords(self.snake.segments[i - 1])
+            self.canvas.coords(self.snake.segments[i], *old_coords)
+
+
+        if self.movement_dir == "up" and coords[1] >= self.snake.snake_size:
             self.canvas.move(self.snake.snakehead, 0, -self.snake.snake_size)
 
         elif self.movement_dir == "down" and coords[3] < 500:
@@ -75,24 +113,55 @@ class App(tk.Frame):
             self.canvas.move(self.snake.snakehead, self.snake.snake_size, 0)
 
 
-        elif self.movement_dir == "left" and coords[0] > self.snake.snake_size:
+        elif self.movement_dir == "left" and coords[0] >= self.snake.snake_size:
             self.canvas.move(self.snake.snakehead, -self.snake.snake_size, 0)
 
         else:
-            self.canvas.move(self.snake.snakehead, 0, 0)
-            self.check_start = False
-            self.start_button.config(state="active")
-            self.canvas.delete("snake")
             self.loose_game()
 
-        if self.check_start:
-            self.canvas.after(100, self.update_position)
+        if self.check_snake_body_collision():
+            self.loose_game()
+            return
 
+
+        if self.check_start:
+            self.canvas.after(150, self.update_position)
+            self.eating()
+
+
+    def eating(self):
+        if self.food.food and self.snake.snakehead:
+            if self.canvas.coords(self.snake.snakehead) == self.canvas.coords(self.food.food):
+                self.canvas.delete("food")
+                self.food.spawn_food()
+                self.add_segment()
+                self.point_info["text"] += 1
+                self.point_counter += 1
+
+
+    def add_segment(self):
+        last_segment = self.snake.segments[-1]
+        last_coords = self.canvas.coords(last_segment)
+
+        new_segment = self.canvas.create_rectangle(*last_coords, fill="#006400", outline="black", tags="snake")
+        self.snake.segments.append(new_segment)
+
+        return last_segment, last_coords
+    
+
+    def check_snake_body_collision(self):
+        snakehead_coords = self.canvas.coords(self.snake.snakehead)
+
+        for segment in self.snake.segments[1:]:
+            if self.canvas.coords(segment) == snakehead_coords:
+                return True
+            
+        return False
 
 
 root = tk.Tk()
 root.title("Snake")
-root.geometry("600x600")
+root.geometry("600x600+650+200")
 root.iconbitmap(default="favicon.ico")
 root.resizable(False, False)
 root.config(bg="#bfd2c4")
