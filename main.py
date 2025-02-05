@@ -44,6 +44,12 @@ class App(tk.Frame):
 
         self.canvas.bind_all("<KeyPress>", self.movement)
         self.canvas.bind_all("<Return>", self.keyboard_start_game)
+        # Create a menu widget for game controls
+        menu_bar = tk.Menu(self.master)
+        game_menu = tk.Menu(menu_bar, tearoff=0)
+        game_menu.add_command(label="Exit", command=self.quit)
+        menu_bar.add_cascade(label="Menu", menu=game_menu)
+        self.master.config(menu=menu_bar)
 
 
     def keyboard_start_game(self, event):
@@ -62,17 +68,22 @@ class App(tk.Frame):
         self.check_start = False
         self.canvas.delete("snake")
 
-        showinfo(title="Oops...", message=f"You loose. Your score: {self.point_info['text']}", detail="Press 'OK' to restart", icon=ERROR, default=OK)
+        showinfo(
+            title="Oops...",
+            message=f"You lose. Your score: {self.point_counter}",
+            detail="Press 'OK' to restart",
+            icon=ERROR,
+            default=OK
+        )
         self.snake.spawn_snake()
         self.canvas.delete("food")
 
         if self.best_score < self.point_counter:
-            self.best_score_info["text"] = f'Your best score: {self.point_info["text"]}'
             self.best_score = self.point_counter
+            self.best_score_info.config(text=f"Your best score: {self.best_score}")
 
-        self.point_info["text"] = 0
         self.point_counter = 0
-        
+        self.point_info.config(text=self.point_counter)
 
 
     def movement(self, event):
@@ -135,8 +146,8 @@ class App(tk.Frame):
                 self.canvas.delete("food")
                 self.food.spawn_food()
                 self.add_segment()
-                self.point_info["text"] += 1
                 self.point_counter += 1
+                self.point_info.config(text=self.point_counter)
 
 
     def add_segment(self):
@@ -157,6 +168,10 @@ class App(tk.Frame):
                 return True
             
         return False
+
+
+    def restart_game(self):
+        self.start_game()
 
 
 root = tk.Tk()
